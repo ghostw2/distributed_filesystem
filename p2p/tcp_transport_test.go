@@ -8,8 +8,13 @@ import (
 
 func TestTCPTransport(t *testing.T) {
 	listenAddr := ":4000"
-	tr := NewTCPTransport(listenAddr)
-	assert.Equal(t, tr.listenAddress, listenAddr)
+	opts := TCPTransportOpts{
+		ListenAddr:    listenAddr,
+		HandshakeFunc: NopeHandshakeFunc,
+		Decoder:       DefaultDecoder{},
+	}
+	tr := NewTCPTransport(opts)
+	assert.Equal(t, tr.ListenAddr, listenAddr)
 	assert.Nil(t, tr.ListenAndAccept())
 	// tr.Start()
 }
