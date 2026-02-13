@@ -10,8 +10,11 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
+
+const defaultRoot = "storage"
 
 func CASPathTransformFunc(key string) *PathKey {
 	hash := sha1.Sum([]byte(key))
@@ -33,9 +36,10 @@ type Store struct {
 	StoreOpts
 }
 type StoreOpts struct {
-	TransformFunc PathTransfromFunc
+	Root          string
+	TransformFunc PathTransformFunc
 }
-type PathTransfromFunc func(string) *PathKey
+type PathTransformFunc func(string) *PathKey
 
 var DefaultPathTransformFunc = func(key string) *PathKey {
 	return &PathKey{
@@ -49,13 +53,24 @@ type PathKey struct {
 	Filename string
 }
 
-func (p *PathKey) FullPath() string {
-	return fmt.Sprintf("%s/%s", p.Pathname, p.Filename)
+func (p *PathKey) FullPath(root string) string {
+	return fmt.Sprintf("%s/%s/%s", root, p.Pathname, p.Filename)
 }
 func NewStorage(opts *StoreOpts) *Store {
+	if opts.TransformFunc == nil {
+		opts.TransformFunc = DefaultPathTransformFunc
+	}
+	if len(opts.Root) == 0 {
+		opts.Root = defaultRoot
+	}
 	return &Store{
 		StoreOpts: *opts,
 	}
+}
+func (s *Store) FullPathName(key string) []string {
+	pathKey := s.TransformFunc(key)
+	paths := strings.Split(pathKey.Pathname, "/")
+	return paths
 }
 func (s *Store) Read(key string) io.Reader {
 	f, err := s.readStream(key)
@@ -74,7 +89,7 @@ func (s *Store) Read(key string) io.Reader {
 }
 func (s *Store) HasFile(key string) bool {
 	pathKey := s.TransformFunc(key)
-	_, err := os.Stat(pathKey.FullPath())
+	_, err := os.Stat(pathKey.FullPath(s.Root))
 	if errors.Is(err, fs.ErrNotExist) {
 		return false
 	}
@@ -83,22 +98,40 @@ func (s *Store) HasFile(key string) bool {
 }
 func (s *Store) Delete(key string) error {
 	pathKey := s.TransformFunc(key)
-	fmt.Printf("\n removed :%s ", pathKey.FullPath())
-	return os.RemoveAll(pathKey.FullPath())
+	fmt.Printf("\n removed :%s ", pathKey.FullPath(s.Root))
+	err := os.RemoveAll(pathKey.FullPath(s.Root))
+	if err != nil {
+		return err
+	}
+	// Clean up empty parent directories
+	paths := strings.Split(pathKey.Pathname, "/")
+	for i := len(paths); i > 0; i-- {
+
+		// Build the current directory path
+		currentPath := strings.Join(paths[:i], "/")
+
+		err := os.Remove(currentPath)
+		if err != nil {
+			fmt.Printf("error in  Remove :%v", err)
+			break
+		}
+		fmt.Printf("Removed empty directory: %s\n", currentPath)
+	}
+	return nil
 }
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	pathKey := s.TransformFunc(key)
 	// f, err := os.ReadFile(pathKey.FullPath())
-	return os.Open(pathKey.FullPath())
+	return os.Open(pathKey.FullPath(s.Root))
 }
 func (s *Store) writeStream(key string, r io.Reader) error {
 	pathKey := s.TransformFunc(key)
-	err := os.MkdirAll(pathKey.Pathname, os.ModePerm)
+	err := os.MkdirAll(filepath.Join(s.Root, pathKey.Pathname), os.ModePerm)
 	if err != nil {
 		return err
 	}
 
-	fullPathName := pathKey.FullPath()
+	fullPathName := pathKey.FullPath(s.Root)
 	f, err := os.Create(fullPathName)
 	if err != nil {
 		return err
