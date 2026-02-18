@@ -56,7 +56,7 @@ type PathKey struct {
 func (p *PathKey) FullPath(root string) string {
 	return fmt.Sprintf("%s/%s/%s", root, p.Pathname, p.Filename)
 }
-func NewStorage(opts *StoreOpts) *Store {
+func NewStore(opts *StoreOpts) *Store {
 	if opts.TransformFunc == nil {
 		opts.TransformFunc = DefaultPathTransformFunc
 	}
@@ -71,6 +71,9 @@ func (s *Store) FullPathName(key string) []string {
 	pathKey := s.TransformFunc(key)
 	paths := strings.Split(pathKey.Pathname, "/")
 	return paths
+}
+func (s *Store) Write(key string, r io.Reader) error {
+	return s.writeStream(key, r)
 }
 func (s *Store) Read(key string) io.Reader {
 	f, err := s.readStream(key)
@@ -104,7 +107,7 @@ func (s *Store) Delete(key string) error {
 		return err
 	}
 	// Clean up empty parent directories
-	paths := strings.Split(pathKey.Pathname, "/")
+	paths := strings.Split(filepath.Join(s.Root, pathKey.Pathname), "/")
 	for i := len(paths); i > 0; i-- {
 
 		// Build the current directory path
@@ -119,6 +122,7 @@ func (s *Store) Delete(key string) error {
 	}
 	return nil
 }
+
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	pathKey := s.TransformFunc(key)
 	// f, err := os.ReadFile(pathKey.FullPath())
@@ -142,4 +146,7 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	}
 	log.Printf("written (%d) bytes to disk :%s", n, fullPathName)
 	return nil
+}
+func (s *Store) Clear() error {
+	return os.RemoveAll(s.Root)
 }

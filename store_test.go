@@ -7,6 +7,19 @@ import (
 	"testing"
 )
 
+func testStore() *Store {
+	opts := &StoreOpts{
+		Root:          "test_storage",
+		TransformFunc: CASPathTransformFunc,
+	}
+	return NewStore(opts)
+}
+
+func teardown(t *testing.T, s *Store) {
+	if err := s.Clear(); err != nil {
+		t.Errorf("error Clearing the store :%v", err)
+	}
+}
 func TestPathTransform(t *testing.T) {
 	key := "funnypicofmenri"
 	pathname := CASPathTransformFunc(key)
@@ -21,53 +34,56 @@ func TestPathTransform(t *testing.T) {
 	}
 }
 func TestStoreDelete(t *testing.T) {
-	opts := &StoreOpts{
-		TransformFunc: CASPathTransformFunc,
-	}
-	store := NewStorage(opts)
-	key := "my_super_sesscure_dkey"
-	Val := []byte("somsse jpg bytes")
-	data := bytes.NewReader(Val)
-	if err := store.writeStream(key, data); err != nil {
-		t.Error(err)
-	}
-	if !store.HasFile(key) {
-		t.Error("file does not exits")
-	}
-	// store.Delete(key)
-	// if store.HasFile(key) {
-	// 	t.Error("file still exits")
-	// }
 
+	store := testStore()
+	defer teardown(t, store)
+	for i := 0; i < 10; i++ {
+
+		key := fmt.Sprintf("my_super_secure_key_%d", i)
+		Val := []byte(fmt.Sprintf("this is the content of the file for the %d -th time", i))
+		data := bytes.NewReader(Val)
+		if err := store.writeStream(key, data); err != nil {
+			t.Error(err)
+		}
+		if !store.HasFile(key) {
+			t.Error("file does not exits")
+		}
+		store.Delete(key)
+		if store.HasFile(key) {
+			t.Error("file still exits")
+		}
+	}
 }
 func TestStorage(t *testing.T) {
-	opts := &StoreOpts{
-		TransformFunc: CASPathTransformFunc,
-	}
-	storage := NewStorage(opts)
-	key := "my_super_secure_dkey"
-	Val := []byte("some jpg bytes")
-	data := bytes.NewReader(Val)
-	if err := storage.writeStream(key, data); err != nil {
-		t.Error(err)
-	}
 
-	fileContent := storage.Read(key)
+	store := testStore()
+	defer teardown(t, store)
+	for i := 0; i < 50; i++ {
 
-	f, err := io.ReadAll(fileContent)
+		key := fmt.Sprintf("my_super_secure_key_%d", i)
+		Val := []byte(fmt.Sprintf("this is the content of the file for the %d -th time", i))
 
-	if err != nil {
-		t.Error(err)
+		data := bytes.NewReader(Val)
+		if err := store.writeStream(key, data); err != nil {
+			t.Error(err)
+		}
+
+		fileContent := store.Read(key)
+
+		f, err := io.ReadAll(fileContent)
+
+		if err != nil {
+			t.Error(err)
+		}
+
+		if !bytes.Equal(f, Val) {
+			t.Errorf("\nthe expected value :%v \n the actual value :%v",
+				Val, f)
+		}
+		store.Delete(key)
+		fileContent = store.Read(key)
+		if fileContent != nil {
+			t.Errorf("\n the file contents are %v", fileContent)
+		}
 	}
-
-	if !bytes.Equal(f, Val) {
-		t.Errorf("\nthe expected value :%v \n the actual value :%v",
-			Val, f)
-	}
-	storage.Delete(key)
-	fileContent = storage.Read(key)
-	if fileContent != nil {
-		t.Errorf("\n the file contents are %v", fileContent)
-	}
-
 }
