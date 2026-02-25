@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 )
 
 // TCPPeer represents the remote node over a TCP established connection
@@ -13,18 +14,24 @@ type TCPPeer struct {
 	//if we dial a conn -> outbound
 	//if we accept a conn and retrieve -> outbound false
 	outbound bool
+
+	wg *sync.WaitGroup
 }
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
 		Conn:     conn,
 		outbound: outbound,
+		wg:       &sync.WaitGroup{},
 	}
 }
 
 func (p *TCPPeer) Send(b []byte) error {
 	_, err := p.Write(b)
 	return err
+}
+func (p *TCPPeer) Done() {
+	p.wg.Done()
 }
 
 type TCPTransport struct {
@@ -111,9 +118,13 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 			fmt.Printf("this is en decoding error it should stop %v", err)
 			break
 		}
-
 		rpc.From = conn.RemoteAddr()
+		peer.wg.Add(1)
+		fmt.Printf("Sending data form peer %v \n", peer)
 		t.rpcch <- rpc
+
+		peer.wg.Wait()
+		fmt.Println("Done with the stream")
 	}
 
 }
