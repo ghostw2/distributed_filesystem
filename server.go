@@ -43,7 +43,7 @@ func (f *FileServer) Loop() {
 				fmt.Printf("error decoding the payload %v", err)
 				continue
 			}
-			fmt.Printf("the message is coming from %v", msg.From.String())
+			fmt.Printf("the message is coming from %v and the value is %v \n", msg.From.String(), &p)
 
 			if err := f.handleMessage(msg.From.String(), &p); err != nil {
 				fmt.Printf("error handling message %v", err)
@@ -62,7 +62,6 @@ func (f *FileServer) Loop() {
 			// if err := f.handlePayload(&p); err != nil {
 			// 	fmt.Printf("error writing the payload to the store %v", err)
 			// }
-			peer.Done()
 
 		case <-f.quitChannel:
 			return
@@ -70,7 +69,8 @@ func (f *FileServer) Loop() {
 	}
 }
 func (f *FileServer) handlePayload(p *Payload) error {
-	return f.store.Write(p.Key, bytes.NewReader(p.Data))
+	_, err := f.store.Write(p.Key, bytes.NewReader(p.Data))
+	return err
 }
 func (f *FileServer) handleMessage(from string, m *Message) error {
 	switch payload := m.Payload.(type) {
@@ -88,7 +88,7 @@ func (f *FileServer) handleMessageStoreFile(from string, m *MessageStoreFile) er
 	}
 
 	fmt.Printf("handling the message store file with contents :% with key %v \n", from, m.Key)
-	if err := f.store.Write(m.Key, io.LimitReader(peer, 10)); err != nil {
+	if _, err := f.store.Write(m.Key, io.LimitReader(peer, m.Size)); err != nil {
 		return err
 	}
 	peer.Done()
@@ -119,8 +119,8 @@ func (f *FileServer) Stop() {
 	close(f.quitChannel)
 }
 func (f *FileServer) Store(key string, r io.Reader) error {
-
-	return f.store.Write(key, r)
+	_, err := f.store.Write(key, r)
+	return err
 }
 func (f *FileServer) BootstrapNetwork() error {
 	for _, node := range f.BootstrapNodes {
@@ -151,7 +151,8 @@ type Message struct {
 	Payload any
 }
 type MessageStoreFile struct {
-	Key string
+	Key  string
+	Size int64
 }
 
 func (f *FileServer) Broadcast(p *Payload) error {
@@ -167,40 +168,38 @@ func (f *FileServer) Broadcast(p *Payload) error {
 
 func (f *FileServer) StoreDate(key string, r io.Reader) error {
 	// Read the data from the reader and store it in a buffer
-	buff := new(bytes.Buffer)
-	// tee := io.TeeReader(r, buff)
-
+	fileBuff := new(bytes.Buffer)
+	io.Copy(fileBuff, r)
 	// Store the date to disk
-	// if err := f.store.Write(key, tee); err != nil {
-	// 	return err
-	// }
-
+	var n int64
+	n, err := f.store.Write(key, bytes.NewReader(fileBuff.Bytes()))
+	if err != nil {
+		return err
+	}
+	headerBuff := new(bytes.Buffer)
 	payload := &Message{
 		Payload: &MessageStoreFile{
-			Key: key,
+			Key:  key,
+			Size: n,
 		},
 	}
 	// Broadcast to. all other known peers that you have the date
-	if err := gob.NewEncoder(buff).Encode(payload); err != nil {
+	if err := gob.NewEncoder(headerBuff).Encode(payload); err != nil {
 		fmt.Printf("theres is an error here mate %v\n", err)
 		return err
 	}
+
 	for _, peer := range f.Peers {
-		if err := peer.Send(buff.Bytes()); err != nil {
+		if err := peer.Send(headerBuff.Bytes()); err != nil {
 			fmt.Printf("error broadcasting to peer %v error: %v \n", peer.RemoteAddr(), err)
 		}
 	}
-	time.Sleep(time.Second * 3)
-
-	p := []byte("THIS IS A BIG FILE")
+	time.Sleep(time.Second * 2)
 
 	for _, peer := range f.Peers {
-		if err := peer.Send(p); err != nil {
+		if _, err := io.Copy(peer, bytes.NewReader(fileBuff.Bytes())); err != nil {
 			fmt.Printf("error broadcasting to peer %v error: %v \n", peer.RemoteAddr(), err)
 		}
 	}
-	// fmt.Printf("%s\n", string(p))
-
 	return nil
-	// return f.Broadcast(payload)
 }

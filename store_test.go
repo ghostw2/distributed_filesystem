@@ -42,7 +42,7 @@ func TestStoreDelete(t *testing.T) {
 		key := fmt.Sprintf("my_super_secure_key_%d", i)
 		Val := []byte(fmt.Sprintf("this is the content of the file for the %d -th time", i))
 		data := bytes.NewReader(Val)
-		if err := store.writeStream(key, data); err != nil {
+		if _, err := store.writeStream(key, data); err != nil {
 			t.Error(err)
 		}
 		if !store.HasFile(key) {
@@ -64,7 +64,7 @@ func TestStorage(t *testing.T) {
 		Val := []byte(fmt.Sprintf("this is the content of the file for the %d -th time", i))
 
 		data := bytes.NewReader(Val)
-		if err := store.writeStream(key, data); err != nil {
+		if _, err := store.writeStream(key, data); err != nil {
 			t.Error(err)
 		}
 

@@ -38,7 +38,7 @@ func main() {
 	time.Sleep(1 * time.Second)
 	go fs_2.Start()
 	time.Sleep(2 * time.Second)
-	data := bytes.NewReader([]byte("hello darkness my old friend"))
+	data := bytes.NewReader([]byte("death to ming and so on"))
 	fmt.Printf("Error value %v", fs_2.StoreDate("my_super_secure_token", data))
 	select {}
 

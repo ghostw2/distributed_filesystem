@@ -72,7 +72,7 @@ func (s *Store) FullPathName(key string) []string {
 	paths := strings.Split(pathKey.Pathname, "/")
 	return paths
 }
-func (s *Store) Write(key string, r io.Reader) error {
+func (s *Store) Write(key string, r io.Reader) (int64, error) {
 	return s.writeStream(key, r)
 }
 func (s *Store) Read(key string) io.Reader {
@@ -128,24 +128,24 @@ func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	// f, err := os.ReadFile(pathKey.FullPath())
 	return os.Open(pathKey.FullPath(s.Root))
 }
-func (s *Store) writeStream(key string, r io.Reader) error {
+func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
 	pathKey := s.TransformFunc(key)
 	err := os.MkdirAll(filepath.Join(s.Root, pathKey.Pathname), os.ModePerm)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	fullPathName := pathKey.FullPath(s.Root)
 	f, err := os.Create(fullPathName)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	n, err := io.Copy(f, r)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	log.Printf("written (%d) bytes to disk :%s", n, fullPathName)
-	return nil
+	return n, nil
 }
 func (s *Store) Clear() error {
 	return os.RemoveAll(s.Root)
