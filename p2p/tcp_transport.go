@@ -106,7 +106,7 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 
 	if t.OnPeer != nil {
 		if err = t.OnPeer(peer); err != nil {
-			fmt.Printf("this is the errr %v \n", err)
+			fmt.Printf("this is the err %v \n", err)
 			return
 		}
 	}
@@ -119,12 +119,17 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 			break
 		}
 		rpc.From = conn.RemoteAddr()
-		peer.wg.Add(1)
-		fmt.Printf("Sending data form peer %v \n", peer)
-		t.rpcch <- rpc
 
-		peer.wg.Wait()
-		fmt.Println("Done with the stream")
+		fmt.Printf("the value of the stream is %v \n", rpc.Stream)
+		if rpc.Stream {
+			fmt.Printf("incoming stream form %v \n ", rpc.From.String())
+			peer.wg.Add(1)
+			peer.wg.Wait()
+			fmt.Printf("stream from %v is done \n", rpc.From.String())
+			continue
+
+		}
+		t.rpcch <- rpc
 	}
 
 }
