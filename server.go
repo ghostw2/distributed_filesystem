@@ -39,7 +39,7 @@ func (f *FileServer) Loop() {
 		select {
 		case msg := <-f.Transport.Consume():
 			var p Message
-			fmt.Printf("%v\n", msg)
+			fmt.Printf("%v\n", string(msg.Payload))
 			if err := gob.NewDecoder(bytes.NewReader([]byte(msg.Payload))).Decode(&p); err != nil {
 				log.Printf("error decoding the payload %v", err)
 
@@ -98,6 +98,7 @@ func (f *FileServer) handleMessageGetFile(from string, m *MessageGetFile) error 
 }
 func (f *FileServer) handleMessageStoreFile(from string, m *MessageStoreFile) error {
 	peer := f.Peers[from]
+	fmt.Println("Handling store file message")
 	if peer == nil {
 		panic("peer not found for the incoming message")
 	}
@@ -232,7 +233,7 @@ func (f *FileServer) Store(key string, r io.Reader) error {
 		fmt.Printf("theres is an error here mate %v\n", err)
 		return err
 	}
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Millisecond * 2)
 	// TODO : we can use a MultiWriter here
 	for _, peer := range f.Peers {
 		peer.Send([]byte{p2p.IncomingStream})

@@ -127,7 +127,6 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 			peer.wg.Wait()
 			fmt.Printf("stream from %v is done \n", rpc.From.String())
 			continue
-
 		}
 		t.rpcch <- rpc
 	}

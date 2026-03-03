@@ -54,8 +54,12 @@ func main() {
 	// } else {
 	// 	fmt.Printf("the file is not found in the network \n")
 	// }
-	data := bytes.NewReader([]byte("death to ming"))
-	fmt.Printf("Error value %v", fs_2.Store("_secure_token", data))
+	for i := 0; i < 15; i++ {
+		data := bytes.NewReader([]byte("death to ming" + fmt.Sprintf("%d", i)))
+		fmt.Printf("Error value %v", fs_2.Store("_secure_token_"+fmt.Sprintf("%d", i), data))
+
+		time.Sleep(1 * time.Millisecond)
+	}
 	select {}
 
 }
