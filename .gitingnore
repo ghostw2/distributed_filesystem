@@ -1,2 +1,2 @@
-:3000_storage
-:4000_storage
+:3000_storage/*
+:4000_storage?*

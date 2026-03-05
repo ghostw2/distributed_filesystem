@@ -75,10 +75,14 @@ func (s *Store) FullPathName(key string) []string {
 func (s *Store) Write(key string, r io.Reader) (int64, error) {
 	return s.writeStream(key, r)
 }
-func (s *Store) Read(key string) io.Reader {
-	f, err := s.readStream(key)
+
+// TODO: instead of copying the file content to a reader we first copy
+//
+//	to a buffer , Maybe we just return the file from readStream
+func (s *Store) Read(key string) (int64, io.Reader) {
+	n, f, err := s.readStream(key)
 	if err != nil {
-		return nil
+		return 0, nil
 	}
 	defer f.Close()
 
@@ -86,9 +90,9 @@ func (s *Store) Read(key string) io.Reader {
 
 	_, err = io.Copy(buff, f)
 	if err != nil {
-		return nil
+		return 0, nil
 	}
-	return buff
+	return n, buff
 }
 func (s *Store) HasFile(key string) bool {
 	pathKey := s.TransformFunc(key)
@@ -109,10 +113,8 @@ func (s *Store) Delete(key string) error {
 	// Clean up empty parent directories
 	paths := strings.Split(filepath.Join(s.Root, pathKey.Pathname), "/")
 	for i := len(paths); i > 0; i-- {
-
 		// Build the current directory path
 		currentPath := strings.Join(paths[:i], "/")
-
 		err := os.Remove(currentPath)
 		if err != nil {
 			fmt.Printf("error in  Remove :%v", err)
@@ -123,10 +125,18 @@ func (s *Store) Delete(key string) error {
 	return nil
 }
 
-func (s *Store) readStream(key string) (io.ReadCloser, error) {
+func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
 	pathKey := s.TransformFunc(key)
-	// f, err := os.ReadFile(pathKey.FullPath())
-	return os.Open(pathKey.FullPath(s.Root))
+	f, err := os.Open(pathKey.FullPath(s.Root))
+	if err != nil {
+		return 0, nil, err
+	}
+	fileStat, err := f.Stat()
+	if err != nil {
+		return 0, nil, err
+	}
+	return fileStat.Size(), f, nil
+	//return os.Open(pathKey.FullPath(s.Root))
 }
 func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
 	pathKey := s.TransformFunc(key)

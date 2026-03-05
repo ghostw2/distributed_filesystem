@@ -73,27 +73,29 @@ func (f *FileServer) handleMessageGetFile(from string, m *MessageGetFile) error 
 	if !ok {
 		return fmt.Errorf("peer not found")
 	}
-	fileBuff := f.store.Read(m.Key)
-
-	// msg := &Message{
-	// 	Payload: &MessageStoreFile{
-	// 		Key:  m.Key,
-	// 		Size: int64(fileBuff.(*bytes.Buffer).Len()),
-	// 	},
-	// }
-	// headerBuff := new(bytes.Buffer)
-	// if err := gob.NewEncoder(headerBuff).Encode(msg); err != nil {
-	// 	return err
-	// }
-	n, err := io.Copy(peer, fileBuff)
-	if err != nil {
+	n, file := f.store.Read(m.Key)
+	fileBuff := file.(*bytes.Buffer)
+	fmt.Printf("%v \n", fileBuff)
+	msg := &Message{
+		Payload: &MessageStoreFile{
+			Key:  m.Key,
+			Size: n,
+		},
+	}
+	headerBuff := new(bytes.Buffer)
+	if err := gob.NewEncoder(headerBuff).Encode(msg); err != nil {
 		return err
 	}
-	fmt.Printf("finished writing the file with key %s and size %d bytes to peer %v \n", m.Key, n, peer.RemoteAddr())
+	peer.Send([]byte{p2p.IncomingMessage})
+	if err := peer.Send(headerBuff.Bytes()); err != nil {
+		return err
+	}
+	time.Sleep(time.Millisecond * 3)
 
-	// if err := peer.Send(headerBuff.Bytes()); err != nil {
-	// 	return err
-	// }
+	peer.Send([]byte{p2p.IncomingStream})
+	if err := peer.Send(fileBuff.Bytes()); err != nil {
+		return err
+	}
 	return nil
 }
 func (f *FileServer) handleMessageStoreFile(from string, m *MessageStoreFile) error {
@@ -201,11 +203,10 @@ func (f *FileServer) Get(key string) (io.Reader, error) {
 			fmt.Printf("error broadcasting the get message to other peers %v\n", err)
 			return nil, err
 		}
-
-		return nil, fmt.Errorf("file not found in network")
+		time.Sleep(time.Millisecond * 50)
 
 	}
-	data := f.store.Read(key)
+	_, data := f.store.Read(key)
 	if data == nil {
 		return nil, fmt.Errorf("file not found")
 	}
