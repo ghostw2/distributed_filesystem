@@ -67,8 +67,10 @@ func TestStorage(t *testing.T) {
 		if _, err := store.writeStream(key, data); err != nil {
 			t.Error(err)
 		}
-
-		_, fileContent := store.Read(key)
+		_, fileContent, err := store.Read(key)
+		if err != nil {
+			t.Error(err)
+		}
 
 		f, err := io.ReadAll(fileContent)
 
@@ -81,7 +83,10 @@ func TestStorage(t *testing.T) {
 				Val, f)
 		}
 		store.Delete(key)
-		_, fileContent = store.Read(key)
+		_, fileContent, err = store.Read(key)
+		if err != nil {
+			t.Error(err)
+		}
 		if fileContent != nil {
 			t.Errorf("\n the file contents are %v", fileContent)
 		}

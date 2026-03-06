@@ -73,9 +73,15 @@ func (f *FileServer) handleMessageGetFile(from string, m *MessageGetFile) error 
 	if !ok {
 		return fmt.Errorf("peer not found")
 	}
-	n, file := f.store.Read(m.Key)
-	fileBuff := file.(*bytes.Buffer)
-	fmt.Printf("%v \n", fileBuff)
+	n, r, err := f.store.Read(m.Key)
+	if err != nil {
+		return err
+	}
+	rc, ok := r.(io.ReadCloser)
+	if ok {
+		defer rc.Close()
+	}
+	//fmt.Printf("%v \n", fileBuff)
 	msg := &Message{
 		Payload: &MessageStoreFile{
 			Key:  m.Key,
@@ -93,7 +99,7 @@ func (f *FileServer) handleMessageGetFile(from string, m *MessageGetFile) error 
 	time.Sleep(time.Millisecond * 3)
 
 	peer.Send([]byte{p2p.IncomingStream})
-	if err := peer.Send(fileBuff.Bytes()); err != nil {
+	if _, err := io.Copy(peer, r); err != nil {
 		return err
 	}
 	return nil
@@ -206,8 +212,8 @@ func (f *FileServer) Get(key string) (io.Reader, error) {
 		time.Sleep(time.Millisecond * 50)
 
 	}
-	_, data := f.store.Read(key)
-	if data == nil {
+	_, data, err := f.store.Read(key)
+	if err != nil {
 		return nil, fmt.Errorf("file not found")
 	}
 	return data, nil

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
@@ -79,20 +78,21 @@ func (s *Store) Write(key string, r io.Reader) (int64, error) {
 // TODO: instead of copying the file content to a reader we first copy
 //
 //	to a buffer , Maybe we just return the file from readStream
-func (s *Store) Read(key string) (int64, io.Reader) {
-	n, f, err := s.readStream(key)
-	if err != nil {
-		return 0, nil
-	}
-	defer f.Close()
+func (s *Store) Read(key string) (int64, io.Reader, error) {
+	return s.readStream(key)
 
-	buff := new(bytes.Buffer)
+	// if err != nil {
+	// 	return 0, nil
+	// }
+	// defer f.Close()
 
-	_, err = io.Copy(buff, f)
-	if err != nil {
-		return 0, nil
-	}
-	return n, buff
+	// buff := new(bytes.Buffer)
+
+	// _, err = io.Copy(buff, f)
+	// if err != nil {
+	// 	return 0, nil
+	// }
+	// return n, buff
 }
 func (s *Store) HasFile(key string) bool {
 	pathKey := s.TransformFunc(key)
