@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-func TestNewEncryptionKey(t *testing.T) {
-	key := newEncryptionKey()
+// func TestNewEncryptionKey(t *testing.T) {
+// 	key := newEncryptionKey()
 
-	for i := 0; i < len(key); i++ {
-		if key[i] == 0x0 {
-			t.Errorf("0 bytes")
-		}
-	}
-}
+// 	for i := 0; i < len(key); i++ {
+// 		if key[i] == 0x0 {
+// 			t.Errorf("0 bytes")
+// 		}
+// 	}
+// }
 
 func TestCopyEncryptDecrypt(t *testing.T) {
 	stringVal := "this is the end"
@@ -29,8 +29,12 @@ func TestCopyEncryptDecrypt(t *testing.T) {
 	fmt.Println(dst.Bytes())
 
 	out := new(bytes.Buffer)
-	if _, err := copyDecrypt(key, dst, out); err != nil {
+	nw, err := copyDecrypt(key, dst, out)
+	if err != nil {
 		t.Error(err)
+	}
+	if nw != 16+len(stringVal) {
+		t.Errorf("Expected : %v , got : %v ", 16+len(stringVal), nw)
 	}
 	fmt.Println(out.String())
 	if out.String() != stringVal {

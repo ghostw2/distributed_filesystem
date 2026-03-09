@@ -12,6 +12,7 @@ import (
 )
 
 type FileServerOpts struct {
+	EncryptionKey     []byte
 	StorageRoot       string
 	PathTransformFunc PathTransformFunc
 	Transport         p2p.Transport
@@ -221,6 +222,7 @@ func (f *FileServer) Get(key string) (io.Reader, error) {
 
 func (f *FileServer) Store(key string, r io.Reader) error {
 	// Read the data from the reader and store it in a buffer
+
 	fileBuff := new(bytes.Buffer)
 	io.Copy(fileBuff, r)
 	// Store the date to disk
@@ -232,7 +234,7 @@ func (f *FileServer) Store(key string, r io.Reader) error {
 	payload := &Message{
 		Payload: &MessageStoreFile{
 			Key:  key,
-			Size: n,
+			Size: int64(n + 16),
 		},
 	}
 	// Broadcast to. all other known peers that you have the date
@@ -242,9 +244,11 @@ func (f *FileServer) Store(key string, r io.Reader) error {
 	}
 	time.Sleep(time.Millisecond * 2)
 	// TODO : we can use a MultiWriter here
+	fmt.Printf("this si the keey:%v", f.EncryptionKey)
+
 	for _, peer := range f.Peers {
 		peer.Send([]byte{p2p.IncomingStream})
-		if _, err := io.Copy(peer, bytes.NewReader(fileBuff.Bytes())); err != nil {
+		if _, err := copyEncrypt(f.EncryptionKey, fileBuff, peer); err != nil {
 			fmt.Printf("error broadcasting to peer %v error: %v \n", peer.RemoteAddr(), err)
 		}
 	}

@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"distributed-filesystem/p2p"
 	"fmt"
-	"io"
 	"time"
 )
 
@@ -25,6 +25,7 @@ func makeFileServer(listenAddr string, bootstrapNodes []string) *FileServer {
 		PathTransformFunc: CASPathTransformFunc,
 		Transport:         tcpTransport,
 		BootstrapNodes:    bootstrapNodes,
+		EncryptionKey:     newEncryptionKey(),
 	}
 	f := NewFileServer(fsOpts)
 	tcpTransport.OnPeer = f.OnPeer
@@ -38,25 +39,25 @@ func main() {
 	time.Sleep(1 * time.Second)
 	go fs_2.Start()
 	time.Sleep(2 * time.Second)
-	var err error
-	var r io.Reader
-	r, err = fs_2.Get("_secure_token")
-	if err != nil {
-		fmt.Printf("error getting the file %v", err)
-	}
-	if r != nil {
-		var b []byte
-		b, err = io.ReadAll(r)
-		if err != nil {
-			fmt.Printf("error reading the file content %v", err)
-		}
-		fmt.Printf("the content of the file is %s \n", string(b))
-	} else {
-		fmt.Printf("the file is not found in the network \n")
-	}
+	// var err error
+	// var r io.Reader
+	// r, err = fs_2.Get("_secure_token")
+	// if err != nil {
+	// 	fmt.Printf("error getting the file %v", err)
+	// }
+	// if r != nil {
+	// 	var b []byte
+	// 	b, err = io.ReadAll(r)
+	// 	if err != nil {
+	// 		fmt.Printf("error reading the file content %v", err)
+	// 	}
+	// 	fmt.Printf("the content of the file is %s \n", string(b))
+	// } else {
+	// 	fmt.Printf("the file is not found in the network \n")
+	// }
 	// for i := 0; i < 15; i++ {
-	// data := bytes.NewReader([]byte("death to ming"))
-	// fmt.Printf("Error value %v", fs_2.Store("_secure_token", data))
+	data := bytes.NewReader([]byte("death to ming"))
+	fmt.Printf("Error value %v", fs_2.Store("_secure_token", data))
 
 	// time.Sleep(1 * time.Millisecond)
 	// }
